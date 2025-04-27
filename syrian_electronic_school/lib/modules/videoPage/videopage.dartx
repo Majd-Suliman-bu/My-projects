@@ -1,0 +1,33 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import 'package:syrian_electronic_school/modules/videoPage/VideoPage_controller.dartx';
+import 'package:syrian_electronic_school/modules/videoPage/VideoPlayerView.dart';
+
+class VideoPage extends StatefulWidget {
+  @override
+  State<VideoPage> createState() => _VideoPageState();
+}
+
+class _VideoPageState extends State<VideoPage> {
+  VideoPagecontroller contoller = Get.find();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Video Players')),
+      body: Column(
+        children: [
+          Center(
+            child: VideoPlayerPage(
+                url:
+                    'https://assets.mixkit.co/videos/preview/mixkit-clouds-and-blue-sky-2408-large.mp4'),
+          ),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.2,
+          ),
+        ],
+      ),
+    );
+  }
+}

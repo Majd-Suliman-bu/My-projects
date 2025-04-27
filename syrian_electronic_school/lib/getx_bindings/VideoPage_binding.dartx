@@ -1,0 +1,9 @@
+import 'package:get/get.dart';
+import 'package:syrian_electronic_school/modules/videoPage/VideoPage_controller.dartx';
+
+class VideoPageBinding implements Bindings {
+  @override
+  void dependencies() {
+    Get.put<VideoPagecontroller>(VideoPagecontroller());
+  }
+}

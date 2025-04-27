@@ -1,0 +1,160 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
+import 'package:encrypt/encrypt.dart' as enc;
+
+class VideoFromStoragePage extends StatefulWidget {
+  @override
+  State<VideoFromStoragePage> createState() => _VideoFromStoragePageState();
+}
+
+class _VideoFromStoragePageState extends State<VideoFromStoragePage> {
+  List<File> videoFiles = []; // List to store video files
+  VideoPlayerController? _videoPlayerController; // Make it nullable
+  ChewieController? _chewieController; // Make it nullable
+
+  @override
+  void initState() {
+    super.initState();
+    listVideoFiles();
+  }
+
+  Future<void> listVideoFiles() async {
+    Directory? externalDir = await getExternalStorageDirectory();
+    String videoDirectoryPath = '${externalDir?.path}/Flutter';
+
+    Directory videoDirectory = Directory(videoDirectoryPath);
+
+    if (await videoDirectory.exists()) {
+      videoFiles = videoDirectory
+          .listSync()
+          .whereType<File>() // Filter to get only files
+          .toList();
+    }
+  }
+
+  // _decryptData(video) async {
+  //   Uint8List encData = await _readData(video.path);
+  //   print(video.path);
+  //   print("File decryption in progress...");
+  //   enc.Encrypted en = new enc.Encrypted(encData);
+  //   // return MyEncrypt.myEncrypter.decryptBytes(en, iv: MyEncrypt.myIv);
+  //   var plaindata = MyEncrypt.myEncrypter.decryptBytes(en, iv: MyEncrypt.myIv);
+  //   String p = await _writeData(plaindata, video.path);
+  //   print('decryption and writing done!');
+  // }
+
+  _decryptAndPlayVideo(video) async {
+    Uint8List encData = await _readData(video.path);
+    print(video.path);
+    print("File decryption in progress...");
+    enc.Encrypted en = enc.Encrypted(encData);
+
+    final decryptedBytes =
+        MyEncrypt.myEncrypter.decryptBytes(en, iv: MyEncrypt.myIv);
+
+    // Create a temporary file to store the decrypted bytes
+    File tempFile = await _createTempFile(decryptedBytes);
+
+    // Create a video player controller from the temporary file
+    _videoPlayerController = VideoPlayerController.file(tempFile);
+
+    // Initialize the video player controller
+    await _videoPlayerController!.initialize();
+
+    // Create a Chewie controller for video playback
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController!,
+      autoPlay: true,
+      looping: true,
+    );
+
+    // Refresh the UI to show the video player
+    setState(() {});
+  }
+
+  Future<File> _createTempFile(List<int> decryptedBytes) async {
+    Directory tempDir = await getTemporaryDirectory();
+    File tempFile = File("${tempDir.path}/temp_video.mp4");
+    await tempFile.writeAsBytes(Uint8List.fromList(decryptedBytes));
+    return tempFile;
+  }
+
+  // Future<String> _writeData(dataToWrite, fileNameWithPath) async {
+  //   print("Writting Data...");
+  //   File f = File(fileNameWithPath);
+  //   await f.writeAsBytes(dataToWrite);
+  //   print('writing function done!');
+  //   return f.absolute.toString();
+  // }
+
+  Future<Uint8List> _readData(fileNameWithPath) async {
+    print("Reading data...");
+    File f = File(fileNameWithPath);
+    return await f.readAsBytes();
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController?.dispose();
+    _chewieController?.dispose();
+
+    // Delete the temporary file when the widget is disposed
+    _deleteTempFile();
+
+    super.dispose();
+  }
+
+  void _deleteTempFile() async {
+    if (_videoPlayerController != null) {
+      final file = File(_videoPlayerController!.dataSource);
+      if (await file.exists()) {
+        await file.delete();
+        print('Temporary file deleted');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+          backgroundColor: Colors.deepOrange,
+          title: const Text('Video Players')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: videoFiles.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(videoFiles[index].path.split('/').last),
+                  onTap: () {
+                    // _decryptData(videoFiles[index]);
+
+                    // playVideo(videoFiles[index]);
+                    _decryptAndPlayVideo(videoFiles[index]);
+                  },
+                );
+              },
+            ),
+          ),
+          if (_chewieController != null)
+            Chewie(
+              controller: _chewieController!,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class MyEncrypt {
+  static final myKey = enc.Key.fromUtf8('TechWithVPTechWithVPTechWithVP12');
+  static final myIv = enc.IV.fromUtf8("VivekPanchal1122");
+  static final myEncrypter = enc.Encrypter(enc.AES(myKey));
+}
