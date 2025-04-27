@@ -1,0 +1,135 @@
+import 'dart:convert';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
+import 'package:flutter_chat_ui/flutter_chat_ui.dart';
+
+class ChatBot extends StatefulWidget {
+  @override
+  _ChatBotState createState() => _ChatBotState();
+}
+
+class _ChatBotState extends State<ChatBot> {
+  List<types.Message> _allMessages = []; // All generated messages
+  List<types.Message> _displayedMessages = []; // Messages currently displayed
+  final types.User _user1 = const types.User(id: 'user-1');
+  final types.User _user2 = const types.User(id: 'user-2');
+  bool _isLoading = false; // To control the display of the loading indicator
+  bool _hasMoreMessages = true; // To check if there are more messages to load
+  final int _pageSize = 10; // Number of messages to load per "page""
+
+  @override
+  void initState() {
+    super.initState();
+    _generateAllMessages();
+    _loadInitialMessages();
+  }
+
+  void _generateAllMessages() {
+    final random = Random();
+    // Generate 80 messages to simulate a conversation
+    for (int i = 0; i < 80; i++) {
+      final user = random.nextBool() ? _user1 : _user2;
+      final textMessage = types.TextMessage(
+        author: user,
+        createdAt: DateTime.now().millisecondsSinceEpoch - i * 1000,
+        id: _randomString(),
+        text: 'Message ${i + 1} from ${user.id}',
+      );
+      _allMessages.add(textMessage);
+    }
+    // Sort messages by timestamp so the conversation makes sense
+    _allMessages.sort((a, b) => a.createdAt!.compareTo(b.createdAt!));
+  }
+
+  void _loadInitialMessages() {
+    _loadMoreMessages();
+  }
+
+  void _loadMoreMessages() {
+    if (_isLoading || !_hasMoreMessages)
+      return; // Check if already loading or no more messages
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Simulate network delay
+    Future.delayed(Duration(seconds: 2), () {
+      final int currentLength = _displayedMessages.length;
+      final int newLength = min(currentLength + _pageSize, _allMessages.length);
+      setState(() {
+        _displayedMessages = List.from(_allMessages.sublist(0, newLength));
+        _isLoading = false;
+        if (newLength == _allMessages.length) {
+          _hasMoreMessages = false; // No more messages to load
+        }
+      });
+    });
+  }
+
+  String _randomString() {
+    final random = Random.secure();
+    final values = List<int>.generate(16, (i) => random.nextInt(255));
+    return base64UrlEncode(values);
+  }
+
+  void _addMessage(types.Message message) {
+    setState(() {
+      _displayedMessages.insert(0, message);
+    });
+  }
+
+  void _handleSendPressed(types.PartialText message) {
+    final textMessage = types.TextMessage(
+      author: _user1,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      id: _randomString(),
+      text: message.text,
+    );
+
+    _addMessage(textMessage);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: NotificationListener<ScrollNotification>(
+        onNotification: (ScrollNotification scrollInfo) {
+          if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent &&
+              !_isLoading &&
+              _hasMoreMessages) {
+            _loadMoreMessages();
+          }
+          return true;
+        },
+        child: Stack(
+          children: [
+            Chat(
+              messages: _displayedMessages,
+              onSendPressed: _handleSendPressed,
+              user: _user1,
+            ),
+            if (_isLoading)
+              Positioned(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              ),
+            if (!_hasMoreMessages && _allMessages.isNotEmpty)
+              Positioned(
+                bottom: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text("End of conversation"),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
